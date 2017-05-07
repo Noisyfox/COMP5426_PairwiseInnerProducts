@@ -16,7 +16,7 @@ void usage(char const* const message, ...)
 
 	printf("Please run the application in the following format:\n");
 	printf("mpirun -np [proc num] inner_product [M] [N]\n");
-	printf("Required: [N] %% [proc num] = 0\n");
+	printf("Required: [N] %% [proc num] = 0; [proc num] %% 2 = 1\n");
 	printf("\n");
 }
 
@@ -35,10 +35,19 @@ int main(int argc, char** argv)
 	prev_id = is_master ? num_procs - 1 : my_id - 1;
 	next_id = (my_id + 1) % num_procs;
 
-	// Read user input
-	if(argc < 3)
+	if(num_procs % 2 != 1)
 	{
-		if(is_master)
+		if (is_master)
+		{
+			usage("Process number must be odd!");
+		}
+		goto _exit;
+	}
+
+	// Read user input
+	if (argc < 3)
+	{
+		if (is_master)
 		{
 			usage("Too few arguments (2 required, %d provided).", argc - 1);
 		}
@@ -47,7 +56,7 @@ int main(int argc, char** argv)
 	m = atoi(argv[1]);
 	n = atoi(argv[2]);
 
-	if(n % num_procs != 0)
+	if (n % num_procs != 0)
 	{
 		if (is_master)
 		{
