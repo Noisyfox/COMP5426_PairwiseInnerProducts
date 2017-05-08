@@ -256,7 +256,22 @@ int main(int argc, char** argv)
 			}
 		}
 
-		// TODO: merge results to master
+		// Merge results to master
+		if (is_master)
+		{
+			printf("Merging results...\n");
+			
+			// TODO: receive results and merge
+		}
+		else
+		{
+			// Send results to master processor
+			if (requests[pp(0)] != MPI_REQUEST_NULL)
+			{
+				MPI_Wait(&requests[pp(0)], &statuses[pp(0)]);
+			}
+			MPI_Send(processor_results, processor_results_count, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
+		}
 	}
 
 	if (is_master)
