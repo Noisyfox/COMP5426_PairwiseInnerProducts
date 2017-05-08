@@ -13,12 +13,12 @@ void usage(char const* const message, ...)
 
 	va_end(arg_ptr);
 
-	printf("\n");
+	fprintf(stderr, "\n");
 
-	printf("Please run the application in the following format:\n");
-	printf("mpirun -np [proc num] inner_product [M] [N]\n");
-	printf("Required: [N] %% [proc num] = 0; [proc num] %% 2 = 1\n");
-	printf("\n");
+	fprintf(stderr, "Please run the application in the following format:\n");
+	fprintf(stderr, "mpirun -np [proc num] inner_product [M] [N]\n");
+	fprintf(stderr, "Required: [N] %% [proc num] = 0; [proc num] %% 2 = 1\n");
+	fprintf(stderr, "\n");
 }
 
 /*
@@ -243,10 +243,10 @@ int main(int argc, char** argv)
 			if (processor_results_index < processor_results_count)
 			{
 				// Shift right blocks
-				if (requests[pp(next_id)] != MPI_REQUEST_NULL)
-				{
+//				if (requests[pp(next_id)] != MPI_REQUEST_NULL)
+//				{
 					MPI_Wait(&requests[pp(next_id)], &statuses[pp(next_id)]);
-				}
+//				}
 				MPI_Isend(block_right[0], rows_per_block * m, MPI_FLOAT, next_id, 0, MPI_COMM_WORLD, &requests[pp(next_id)]);
 				MPI_Recv(block_right[0], rows_per_block * m, MPI_FLOAT, prev_id, MPI_ANY_TAG, MPI_COMM_WORLD, &statuses[pp(prev_id)]);
 			}
@@ -266,10 +266,10 @@ int main(int argc, char** argv)
 		else
 		{
 			// Send results to master processor
-			if (requests[pp(0)] != MPI_REQUEST_NULL)
-			{
+//			if (requests[pp(0)] != MPI_REQUEST_NULL)
+//			{
 				MPI_Wait(&requests[pp(0)], &statuses[pp(0)]);
-			}
+//			}
 			MPI_Send(processor_results, processor_results_count, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
 		}
 	}
