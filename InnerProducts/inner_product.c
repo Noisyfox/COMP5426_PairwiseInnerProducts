@@ -68,6 +68,21 @@ int product_in_block(float** block, int rows, int m, float* results)
 	return k;
 }
 
+int product_among_blocks(float** left, int left_rows, float** right, int right_rows, int m, float* results)
+{
+	int i, j, k = 0;
+
+	for(i = 0; i < left_rows; i++)
+	{
+		for(j = 0; j < right_rows; j++)
+		{
+			results[k++] = product(left[i], right[j], m);
+		}
+	}
+
+	return k;
+}
+
 void print_results(float* results, int result_count, int n)
 {
 	int i;
@@ -154,6 +169,12 @@ int main(int argc, char** argv)
 	requests = (MPI_Request*)malloc((num_procs - 1) * sizeof(MPI_Request));
 	statuses = (MPI_Status*)malloc((num_procs - 1) * sizeof(MPI_Status));
 	indices = (int*)malloc((num_procs - 1) * sizeof(int));
+	for(i = 0; i < num_procs - 1; i++)
+	{
+		requests[i] = MPI_REQUEST_NULL;
+	}
+
+#define pp(process) ((process) > my_id ? (process) - 1 : (process))
 
 	if (is_master)
 	{
@@ -179,7 +200,7 @@ int main(int argc, char** argv)
 			memcpy(block_left[0], full_matrix[0], rows_per_block * m * sizeof(float));
 			for (i = 1; i < num_procs; i++)
 			{
-				MPI_Isend(full_matrix[i * rows_per_block], rows_per_block * m, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &requests[i - 1]);
+				MPI_Isend(full_matrix[i * rows_per_block], rows_per_block * m, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &requests[pp(i)]);
 			}
 			MPI_Waitall(num_procs - 1, requests, statuses);
 
@@ -188,16 +209,16 @@ int main(int argc, char** argv)
 			for (i = 2; i <= num_procs; i++)
 			{
 				j = i % num_procs;
-				MPI_Isend(full_matrix[j * rows_per_block], rows_per_block * m, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &requests[i - 1]);
+				MPI_Isend(full_matrix[j * rows_per_block], rows_per_block * m, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &requests[pp(i)]);
 			}
 		}
 	}
 	else
 	{
 		// Receive initial left block
-		MPI_Recv(block_left[0], rows_per_block * m, MPI_FLOAT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &statuses[0]);
+		MPI_Recv(block_left[0], rows_per_block * m, MPI_FLOAT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &statuses[pp(0)]);
 		// Receive initial right block
-		MPI_Recv(block_right[0], rows_per_block * m, MPI_FLOAT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &statuses[0]);
+		MPI_Recv(block_right[0], rows_per_block * m, MPI_FLOAT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &statuses[pp(0)]);
 	}
 
 	if (has_parallism)
@@ -213,8 +234,29 @@ int main(int argc, char** argv)
 		// First calculate the products inside left blocks
 		processor_results_index += product_in_block(block_left, rows_per_block, m, &processor_results[processor_results_index]);
 
-		// TODO: Here starts the computation iters
+		// Here starts the computation iters
+		while (1)
+		{
+			// Calculate among left and right
+			processor_results_index += product_among_blocks(block_left, rows_per_block, block_right, rows_per_block, m, &processor_results[processor_results_index]);
 
+			if (processor_results_index < processor_results_count)
+			{
+				// Shift right blocks
+				if (requests[pp(next_id)] != MPI_REQUEST_NULL)
+				{
+					MPI_Wait(&requests[pp(next_id)], &statuses[pp(next_id)]);
+				}
+				MPI_Isend(block_right[0], rows_per_block * m, MPI_FLOAT, next_id, 0, MPI_COMM_WORLD, &requests[pp(next_id)]);
+				MPI_Recv(block_right[0], rows_per_block * m, MPI_FLOAT, prev_id, MPI_ANY_TAG, MPI_COMM_WORLD, &statuses[pp(prev_id)]);
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		// TODO: merge results to master
 	}
 
 	if (is_master)
