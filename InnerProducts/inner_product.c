@@ -206,9 +206,9 @@ int main(int argc, char** argv)
 
 			// Send right blocks to other processors
 			memcpy(block_right[0], full_matrix[rows_per_block], rows_per_block * m * sizeof(float));
-			for (i = 2; i <= num_procs; i++)
+			for (i = 1; i < num_procs; i++)
 			{
-				j = i % num_procs;
+				j = (1 + 1) % num_procs;
 				MPI_Isend(full_matrix[j * rows_per_block], rows_per_block * m, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &requests[pp(i)]);
 			}
 		}
