@@ -53,7 +53,7 @@ float product(float* row1, float* row2, int m)
 	return result;
 }
 
-void product_in_block(float** block, int rows, int m, float* results)
+int product_in_block(float** block, int rows, int m, float* results)
 {
 	int i, j, k = 0;
 
@@ -64,6 +64,8 @@ void product_in_block(float** block, int rows, int m, float* results)
 			results[k++] = product(block[i], block[j], m);
 		}
 	}
+
+	return k;
 }
 
 void print_results(float* results, int result_count, int n)
@@ -102,6 +104,9 @@ int main(int argc, char** argv)
 	int final_results_count = 0;
 	float* final_results = NULL;
 	float* final_results_serial = NULL;
+	int processor_results_count = 0;
+	float* processor_results = NULL;
+	int processor_results_index = 0;
 
 	// Init MPI and process id
 	MPI_Init(&argc, &argv);
@@ -195,12 +200,19 @@ int main(int argc, char** argv)
 		MPI_Recv(block_right[0], rows_per_block * m, MPI_FLOAT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &statuses[0]);
 	}
 
-	if(has_parallism)
+	if (has_parallism)
 	{
 		if (is_master)
 		{
 			printf("Performing parallism computation...\n");
 		}
+
+		processor_results_count = n * (n - 1) / 2 / num_procs;
+		processor_results = malloc(processor_results_count * sizeof(float));
+
+		// First calculate the products inside left blocks
+		processor_results_index += product_in_block(block_left, rows_per_block, m, &processor_results[processor_results_index]);
+
 		// TODO: Here starts the computation iters
 
 	}
