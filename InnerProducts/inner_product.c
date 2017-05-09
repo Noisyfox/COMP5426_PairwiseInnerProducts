@@ -91,7 +91,7 @@ void print_results(float** results, int max_columns, int rows)
 	{
 		for (j = 0; j < max_columns; j++)
 		{
-			printf("%f ", results[i][j]);
+			printf("%.2f ", results[i][j]);
 		}
 		max_columns--;
 		printf("\n");
@@ -260,9 +260,9 @@ int main(int argc, char** argv)
 				break;
 			}
 		}
-		printf("Results from processor %d:\n", my_id);
-		print_results(processor_results, max_columns, rows_per_block);
-		printf("\n");
+//		printf("Results from processor %d:\n", my_id);
+//		print_results(processor_results, max_columns, rows_per_block);
+//		printf("\n");
 
 		// Merge results to master
 		if (is_master)
@@ -338,6 +338,32 @@ int main(int argc, char** argv)
 		printf("Results from serial computation:\n");
 		// Print out results from serial computation
 		print_results(final_results_serial, n - 1, n - 1);
+
+		if (has_parallism)
+		{
+			// Compare results
+			printf("\n");
+			printf("Checking results...\n");
+
+			int all_match = 1;
+			for (i = 0; i < final_results_count; i++)
+			{
+				if (final_results_serial[0][i] != final_results[0][i])
+				{
+					all_match = 0;
+					break;
+				}
+			}
+
+			if (all_match)
+			{
+				printf("All correct!\n");
+			}
+			else
+			{
+				printf("Error!\n");
+			}
+		}
 	}
 
 _exit:
