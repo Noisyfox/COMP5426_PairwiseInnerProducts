@@ -40,6 +40,23 @@ float** create_matrix(int n, int m)
 	return matrix;
 }
 
+float** create_triangle_matrix(int columns, int rows)
+{
+	int total = (columns * 2 - rows + 1) * rows / 2;
+	float* flat = malloc(total * sizeof(float));
+	float** mt = malloc(rows * sizeof(float*));
+	int i, j = 0;
+
+	for (i = 0; i < rows; i++)
+	{
+		mt[i] = &flat[j];
+		j += columns;
+		columns--;
+	}
+
+	return mt;
+}
+
 float product(float* row1, float* row2, int m)
 {
 	float result = 0;
@@ -53,56 +70,35 @@ float product(float* row1, float* row2, int m)
 	return result;
 }
 
-int product_in_block(float** block, int rows, int m, float* results)
+void product_in_block(float** block, int rows, int m, float** results)
 {
-	int i, j, k = 0;
+	int i, j;
 
 	for (i = 0; i < rows - 1; i++)
 	{
 		for (j = i + 1; j < rows; j++)
 		{
-			results[k++] = product(block[i], block[j], m);
+			results[i][j - i - 1] = product(block[i], block[j], m);
 		}
 	}
-
-	return k;
 }
 
-int product_among_blocks(float** left, int left_rows, float** right, int right_rows, int m, float* results)
+void print_results(float** results, int max_columns, int rows)
 {
-	int i, j, k = 0;
+	int i, j;
 
-	for(i = 0; i < left_rows; i++)
+	for (i = 0; i < rows; i++)
 	{
-		for(j = 0; j < right_rows; j++)
+		for (j = 0; j < max_columns; j++)
 		{
-			results[k++] = product(left[i], right[j], m);
+			printf("%f ", results[i][j]);
 		}
-	}
-
-	return k;
-}
-
-void print_results(float* results, int result_count, int n)
-{
-	int i;
-	int j = n - 1;
-	int k = n - 2;
-
-	for (i = 0; i < result_count; i++)
-	{
-		printf("%f ", results[i]);
-		j--;
-		if (j == 0)
-		{
-			j = k;
-			k--;
-			printf("\n");
-		}
+		max_columns--;
+		printf("\n");
 	}
 }
 
-void merge_processor(float* final_results, float* processor_results, int process, int n, int m)
+void merge_processor(float** final_results, float** processor_results, int process, int n, int m)
 {
 
 }
@@ -117,17 +113,16 @@ int main(int argc, char** argv)
 	int is_master, has_parallism;
 	int m, n;
 	float** full_matrix = NULL;
-	int rows_per_block;
+	int rows_per_block, max_columns, iter_count;
 	int i, j, k;
 	float** block_left = NULL;
 	float** block_right = NULL;
 	int final_results_count = 0;
-	float* final_results = NULL;
-	float* final_results_serial = NULL;
+	float** final_results = NULL;
+	float** final_results_serial = NULL;
 	int processor_results_count = 0;
-	float* processor_results_flat = NULL;
-	float** processor_resuls = NULL;
-	int processor_results_index = 0;
+	float** processor_results = NULL;
+	int current_iter = 1;
 
 	// Init MPI and process id
 	MPI_Init(&argc, &argv);
@@ -170,6 +165,8 @@ int main(int argc, char** argv)
 	}
 
 	rows_per_block = n / num_procs;
+	iter_count = (num_procs + 1) / 2;
+	max_columns = iter_count * rows_per_block - 1;
 	block_left = create_matrix(rows_per_block, m);
 	block_right = create_matrix(rows_per_block, m);
 	requests = (MPI_Request*)malloc((num_procs - 1) * sizeof(MPI_Request));
@@ -200,7 +197,7 @@ int main(int argc, char** argv)
 
 		if (has_parallism)
 		{
-			final_results = malloc(final_results_count * sizeof(float));
+			final_results = create_triangle_matrix(n - 1, n - 1);
 
 			// Send left blocks to other processors
 			memcpy(block_left[0], full_matrix[0], rows_per_block * m * sizeof(float));
@@ -214,16 +211,15 @@ int main(int argc, char** argv)
 			memcpy(block_right[0], full_matrix[rows_per_block], rows_per_block * m * sizeof(float));
 			for (i = 1; i < num_procs; i++)
 			{
-				j = (1 + 1) % num_procs;
+				j = (i + 1) % num_procs;
 				MPI_Isend(full_matrix[j * rows_per_block], rows_per_block * m, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &requests[pp(i)]);
 			}
 		}
 	}
 	else
 	{
-		// Receive initial left block
+		// Receive initial left and right block
 		MPI_Recv(block_left[0], rows_per_block * m, MPI_FLOAT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &statuses[pp(0)]);
-		// Receive initial right block
 		MPI_Recv(block_right[0], rows_per_block * m, MPI_FLOAT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &statuses[pp(0)]);
 	}
 
@@ -235,39 +231,43 @@ int main(int argc, char** argv)
 		}
 
 		processor_results_count = n * (n - 1) / 2 / num_procs;
-		processor_results_flat = malloc(processor_results_count * sizeof(float));
-		processor_resuls = malloc(rows_per_block * sizeof(float*));
-		j = 0;
-		k = 
-		for (i = 0; i < rows_per_block; i++)
-		{
-
-		}
+		processor_results = create_triangle_matrix(max_columns, rows_per_block);
 
 		// First calculate the products inside left blocks
-		processor_results_index += product_in_block(block_left, rows_per_block, m, &processor_results_flat[processor_results_index]);
+		product_in_block(block_left, rows_per_block, m, processor_results);
 
 		// Here starts the computation iters
 		while (1)
 		{
 			// Calculate among left and right
-			processor_results_index += product_among_blocks(block_left, rows_per_block, block_right, rows_per_block, m, &processor_results_flat[processor_results_index]);
+			for(i = 0; i < rows_per_block; i++)
+			{
+				for(j = 0; j < rows_per_block; j++)
+				{
+					processor_results[i][j - i + rows_per_block * current_iter - 1] = product(block_left[i], block_right[j], m);
+				}
+			}
 
-			if (processor_results_index < processor_results_count)
+			current_iter++;
+			if (current_iter < iter_count)
 			{
 				// Shift right blocks
 //				if (requests[pp(next_id)] != MPI_REQUEST_NULL)
 //				{
-					MPI_Wait(&requests[pp(next_id)], &statuses[pp(next_id)]);
+					MPI_Wait(&requests[pp(prev_id)], &statuses[pp(prev_id)]);
 //				}
-				MPI_Isend(block_right[0], rows_per_block * m, MPI_FLOAT, next_id, 0, MPI_COMM_WORLD, &requests[pp(next_id)]);
-				MPI_Recv(block_right[0], rows_per_block * m, MPI_FLOAT, prev_id, MPI_ANY_TAG, MPI_COMM_WORLD, &statuses[pp(prev_id)]);
+				MPI_Isend(block_right[0], rows_per_block * m, MPI_FLOAT, prev_id, 0, MPI_COMM_WORLD, &requests[pp(prev_id)]);
+				MPI_Recv(block_right[0], rows_per_block * m, MPI_FLOAT, next_id, MPI_ANY_TAG, MPI_COMM_WORLD, &statuses[pp(next_id)]);
+//				MPI_Sendrecv_replace(block_right[0], rows_per_block * m, MPI_FLOAT, prev_id, 0, next_id, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			}
 			else
 			{
 				break;
 			}
 		}
+		printf("Results from processor %d:\n", my_id);
+		print_results(processor_results, max_columns, rows_per_block);
+		printf("\n");
 
 		// Merge results to master
 		if (is_master)
@@ -275,11 +275,11 @@ int main(int argc, char** argv)
 			printf("Merging results...\n");
 			
 			// Receive results and merge
-			merge_processor(final_results, processor_results_flat, 0, n, m);
+			merge_processor(final_results, processor_results, 0, n, m);
 			for (i = 1; i < num_procs; i++)
 			{
-				MPI_Recv(processor_results_flat, processor_results_count, MPI_FLOAT, i, MPI_ANY_TAG, MPI_COMM_WORLD, &statuses[pp(i)]);
-				merge_processor(final_results, processor_results_flat, i, n, m);
+				MPI_Recv(processor_results[0], processor_results_count, MPI_FLOAT, i, MPI_ANY_TAG, MPI_COMM_WORLD, &statuses[pp(i)]);
+				merge_processor(final_results, processor_results, i, n, m);
 			}
 		}
 		else
@@ -289,7 +289,7 @@ int main(int argc, char** argv)
 //			{
 				MPI_Wait(&requests[pp(0)], &statuses[pp(0)]);
 //			}
-			MPI_Send(processor_results_flat, processor_results_count, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
+			MPI_Send(processor_results[0], processor_results_count, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
 		}
 	}
 
@@ -300,7 +300,7 @@ int main(int argc, char** argv)
 			printf("Done.\n");
 			// Print out results
 			printf("Results from parallism computation:\n");
-			print_results(final_results, final_results_count, n);
+			print_results(final_results, n - 1, n - 1);
 
 			printf("\n");
 		}
@@ -308,13 +308,13 @@ int main(int argc, char** argv)
 		// Do serial computation
 
 		printf("Performing serial computation...\n");
-		final_results_serial = malloc(final_results_count * sizeof(float));
+		final_results_serial = create_triangle_matrix(n - 1, n - 1);
 		product_in_block(full_matrix, n, m, final_results_serial);
 		printf("Done.\n");
 
 		printf("Results from serial computation:\n");
 		// Print out results from serial computation
-		print_results(final_results_serial, final_results_count, n);
+		print_results(final_results_serial, n - 1, n - 1);
 	}
 
 _exit:
