@@ -102,6 +102,11 @@ void print_results(float* results, int result_count, int n)
 	}
 }
 
+void merge_processor(float* final_results, float* processor_results, int process, int n, int m)
+{
+
+}
+
 int main(int argc, char** argv)
 {
 	int my_id, num_procs, prev_id, next_id;
@@ -261,7 +266,13 @@ int main(int argc, char** argv)
 		{
 			printf("Merging results...\n");
 			
-			// TODO: receive results and merge
+			// Receive results and merge
+			merge_processor(final_results, processor_results, 0, n, m);
+			for (i = 1; i < num_procs; i++)
+			{
+				MPI_Recv(processor_results, processor_results_count, MPI_FLOAT, i, MPI_ANY_TAG, MPI_COMM_WORLD, &statuses[pp(i)]);
+				merge_processor(final_results, processor_results, i, n, m);
+			}
 		}
 		else
 		{
