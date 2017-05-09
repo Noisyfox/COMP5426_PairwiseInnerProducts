@@ -125,7 +125,8 @@ int main(int argc, char** argv)
 	float* final_results = NULL;
 	float* final_results_serial = NULL;
 	int processor_results_count = 0;
-	float* processor_results = NULL;
+	float* processor_results_flat = NULL;
+	float** processor_resuls = NULL;
 	int processor_results_index = 0;
 
 	// Init MPI and process id
@@ -234,16 +235,23 @@ int main(int argc, char** argv)
 		}
 
 		processor_results_count = n * (n - 1) / 2 / num_procs;
-		processor_results = malloc(processor_results_count * sizeof(float));
+		processor_results_flat = malloc(processor_results_count * sizeof(float));
+		processor_resuls = malloc(rows_per_block * sizeof(float*));
+		j = 0;
+		k = 
+		for (i = 0; i < rows_per_block; i++)
+		{
+
+		}
 
 		// First calculate the products inside left blocks
-		processor_results_index += product_in_block(block_left, rows_per_block, m, &processor_results[processor_results_index]);
+		processor_results_index += product_in_block(block_left, rows_per_block, m, &processor_results_flat[processor_results_index]);
 
 		// Here starts the computation iters
 		while (1)
 		{
 			// Calculate among left and right
-			processor_results_index += product_among_blocks(block_left, rows_per_block, block_right, rows_per_block, m, &processor_results[processor_results_index]);
+			processor_results_index += product_among_blocks(block_left, rows_per_block, block_right, rows_per_block, m, &processor_results_flat[processor_results_index]);
 
 			if (processor_results_index < processor_results_count)
 			{
@@ -267,11 +275,11 @@ int main(int argc, char** argv)
 			printf("Merging results...\n");
 			
 			// Receive results and merge
-			merge_processor(final_results, processor_results, 0, n, m);
+			merge_processor(final_results, processor_results_flat, 0, n, m);
 			for (i = 1; i < num_procs; i++)
 			{
-				MPI_Recv(processor_results, processor_results_count, MPI_FLOAT, i, MPI_ANY_TAG, MPI_COMM_WORLD, &statuses[pp(i)]);
-				merge_processor(final_results, processor_results, i, n, m);
+				MPI_Recv(processor_results_flat, processor_results_count, MPI_FLOAT, i, MPI_ANY_TAG, MPI_COMM_WORLD, &statuses[pp(i)]);
+				merge_processor(final_results, processor_results_flat, i, n, m);
 			}
 		}
 		else
@@ -281,7 +289,7 @@ int main(int argc, char** argv)
 //			{
 				MPI_Wait(&requests[pp(0)], &statuses[pp(0)]);
 //			}
-			MPI_Send(processor_results, processor_results_count, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
+			MPI_Send(processor_results_flat, processor_results_count, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
 		}
 	}
 
