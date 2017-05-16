@@ -247,13 +247,9 @@ int main(int argc, char** argv)
 			if (current_iter < iter_count)
 			{
 				// Shift right blocks
-//				if (requests[pp(next_id)] != MPI_REQUEST_NULL)
-//				{
-					MPI_Wait(&requests[pp(prev_id)], &statuses[pp(prev_id)]);
-//				}
+				MPI_Wait(&requests[pp(prev_id)], &statuses[pp(prev_id)]);
 				MPI_Isend(block_right[0], rows_per_block * m, MPI_FLOAT, prev_id, 0, MPI_COMM_WORLD, &requests[pp(prev_id)]);
 				MPI_Recv(block_right[0], rows_per_block * m, MPI_FLOAT, next_id, MPI_ANY_TAG, MPI_COMM_WORLD, &statuses[pp(next_id)]);
-//				MPI_Sendrecv_replace(block_right[0], rows_per_block * m, MPI_FLOAT, prev_id, 0, next_id, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			}
 			else
 			{
@@ -308,10 +304,7 @@ int main(int argc, char** argv)
 		else
 		{
 			// Send results to master processor
-//			if (requests[pp(0)] != MPI_REQUEST_NULL)
-//			{
-				MPI_Wait(&requests[pp(0)], &statuses[pp(0)]);
-//			}
+			MPI_Wait(&requests[pp(0)], &statuses[pp(0)]);
 			MPI_Send(processor_results[0], processor_results_count, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
 		}
 	}
