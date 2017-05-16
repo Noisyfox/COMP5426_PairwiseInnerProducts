@@ -109,7 +109,7 @@ int main(int argc, char** argv)
 	int m, n;
 	float** full_matrix = NULL;
 	int rows_per_block, max_columns, iter_count;
-	int i, j, k;
+	int i, j;
 	float** block_left = NULL;
 	float** block_right = NULL;
 	int final_results_count = 0;
@@ -118,6 +118,8 @@ int main(int argc, char** argv)
 	int processor_results_count = 0;
 	float** processor_results = NULL;
 	int current_iter = 1;
+
+	srand(time(NULL));
 
 	// Init MPI and process id
 	MPI_Init(&argc, &argv);
@@ -178,13 +180,11 @@ int main(int argc, char** argv)
 	{
 		// Generate matrix
 		full_matrix = create_matrix(n, m);
-		k = 1;
 		for (i = 0; i < n; i++)
 		{
 			for (j = 0; j < m; j++)
 			{
-				full_matrix[i][j] = k;  // Here we should use random, but for debugging, just use a counter
-				k++;
+				full_matrix[i][j] = (float)((double)rand() / RAND_MAX * 100.0);
 			}
 		}
 
